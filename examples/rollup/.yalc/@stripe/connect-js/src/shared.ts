@@ -3,15 +3,12 @@ import {
   StripeConnectWrapper,
   IStripeConnectInitParams,
   ConnectElementTagName,
+  ConnectElementHTMLName,
+  StripeConnectInstance,
+  IStripeConnectUpdateParams,
 } from "../types";
 
 export type LoadConnect = () => Promise<StripeConnectWrapper>;
-
-type ConnectElementHTMLName =
-  | "stripe-connect-payments"
-  | "stripe-connect-payouts"
-  | "stripe-connect-payment-details"
-  | "stripe-connect-account-onboarding";
 
 const componentNameMapping: Record<
   ConnectElementTagName,
@@ -20,7 +17,6 @@ const componentNameMapping: Record<
   payments: "stripe-connect-payments",
   payouts: "stripe-connect-payouts",
   "payment-details": "stripe-connect-payment-details",
-  "account-onboarding": "stripe-connect-account-onboarding",
 };
 
 const EXISTING_SCRIPT_MESSAGE =
@@ -35,7 +31,7 @@ export const findScript = (): HTMLScriptElement | null => {
 
 const injectScript = (): HTMLScriptElement => {
   const script = document.createElement("script");
-  script.src = "http://localhost:3001/v0.1/connect.js";
+  script.src = "https://connect-js.stripe.com/v0.1/connect.js";
 
   const head = document.head;
 
@@ -59,13 +55,6 @@ export const loadScript = (): Promise<StripeConnectWrapper | null> => {
   }
 
   stripePromise = new Promise((resolve, reject) => {
-    if (typeof window === "undefined") {
-      reject(
-        "ConnectJS won't load when rendering code in the server - it can only be loaded on a browser. This error is expected when loading ConnectJS in SSR environments, like NextJS. It will have no impact in the UI, however if you wish to avoid it, you can switch to the `pure` version of the connect.js loader: https://github.com/stripe/connect-js#importing-loadconnect-without-side-effects."
-      );
-      return;
-    }
-
     if ((window as any).StripeConnect) {
       console.warn(EXISTING_SCRIPT_MESSAGE);
     }
@@ -129,19 +118,18 @@ const createWrapper = (stripeConnect: any) => {
           },
         },
       });
-
-      // We wrap create so we can map its different strings to supported components
       const oldCreate = stripeConnectInstance.create.bind(
         stripeConnectInstance
       );
       stripeConnectInstance.create = (tagName: ConnectElementTagName) => {
-        let htmlName = componentNameMapping[tagName];
-        if (!htmlName) {
-          htmlName = tagName as ConnectElementHTMLName;
-        }
+        const htmlName = componentNameMapping[tagName];
         return oldCreate(htmlName);
       };
+      console.log("apple");
       return stripeConnectInstance;
+    },
+    logout: async () => {
+      await stripeConnect.logout();
     },
   };
   return wrapper;
