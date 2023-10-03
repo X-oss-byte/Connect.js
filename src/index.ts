@@ -1,6 +1,12 @@
-import { IStripeConnectInitParams, StripeConnectInstance } from "../types";
+// @ts-nocheck
+import {
+  ConnectElementTagName,
+  IStripeConnectInitParams,
+  IStripeConnectUpdateParams,
+  StripeConnectInstance,
+  StripeConnectWrapper,
+} from "../types";
 import { loadScript, initStripeConnect, LoadConnect } from "./shared";
-import { useQuery } from "react-query";
 
 // Execute our own script injection after a tick to give users time to do their
 // own script injection.
@@ -20,57 +26,86 @@ export const loadConnect: LoadConnect = () => {
   return stripePromise.then((maybeConnect) => initStripeConnect(maybeConnect));
 };
 
+const methodsToProxy = ["create", "update", "logout"];
+
 export const loadConnectAndInitialize = (
   initParams: IStripeConnectInitParams
 ): StripeConnectInstance => {
   loadCalled = true;
-  stripePromise.then((maybeConnect) => initStripeConnectProxy(maybeConnect));
-  const { data } = useQuery([initParams], async () => {
-    const stripeConnectWrapper = await stripePromise.then((maybeConnect) =>
-      initStripeConnect(maybeConnect)
-    );
-    if (stripeConnectWrapper === null) {
-      throw new Error("Stripe Connect has not loaded correctly");
-    }
+  let connectInstance = null;
 
-    return stripeConnectWrapper.initialize(initParams);
-  });
-
-  return data;
-};
-
-const methodsToProxy = ["init", "update"];
-
-const dummyInitScript = () => {
-  return new Promise((res) => {
-    setTimeout(() => {
-      res({
-        init: () => console.log("init already called"),
-        update: (...args) => console.log("real update called with", ...args),
+  const stripeConnectInstance = loadScript().then((wrapper) =>
+    wrapper.initialize(initParams)
+  );
+  return {
+    create: (tagName) => {
+      if (connectInstance !== null) {
+        return connectInstance.create(tagName);
+      }
+      const element = document.createElement(tagName);
+      stripeConnectInstance.then((instance) => {
+        connectInstance = instance;
+        (element as any).setConnector(instance);
       });
-    }, 5000);
+
+      return element;
+    },
+    update: (updateOptions) => {
+      if (connectInstance !== null) {
+        connectInstance.update(updateOptions);
+      }
+      stripeConnectInstancePromise.then((instance) => {
+        instance.update(updateOptions);
+      });
+    },
+  };
+};
+
+/* const dummyInitScript = (
+  stripeConnectWrapper: Promise<StripeConnectWrapper>,
+  initParams: IStripeConnectInitParams
+) => {
+  console.log("initializing");
+  return stripeConnectWrapper.then((wrapper) => {
+    wrapper.initialize(initParams);
   });
 };
 
-const initStripeConnectProxy = () => {
-  let loadedObj = null;
-  let queuedMethods = [];
-  const connectInstance = {};
+const stripeConnectInstancePromise = new DeferredPromise<ConnectInstance>();
+const loadConnectAndInit = (initOptions) => {
+  return {
+    //create:  // This can be our existing create implementation, no need to change it!
+    update: (updateOptions) => {
+      stripeConnectInstancePromise.then((instance) => {
+        instance.update(updateOptions);
+      });
+    },
+  };
+};
+
+const initStripeConnectInstanceProxy = (
+  stripeConnectWrapper: Promise<StripeConnectWrapper>,
+  initParams: IStripeConnectInitParams
+): StripeConnectInstance => {
+  const connectWrapper = loadScript()
+    .then((maybeConnect) => initStripeConnect(maybeConnect))
+    .then((wrapper) => wrapper.initialize(initParams));
+  const queuedMethods = [];
+  const obj = {};
+
+  dummyInitScript(stripeConnectWrapper, initParams).then((realConnect) => {
+    console.log("real object loaded");
+    console.log("method queue", queuedMethods);
+    connectInstance = realConnect;
+    for (const [method, args] of queuedMethods) {
+      realConnect[method](...args);
+    }
+  });
+
   for (const method of methodsToProxy) {
     obj[method] = (...args) => {
-      if (loadedObj) {
-        return loadedObj[method](...args);
-      }
-      if (method == "init") {
-        console.log("init called");
-        dummyInitScript().then((realConnect) => {
-          console.log("real object loaded");
-          console.log("method queue", queuedMethods);
-          loadedObj = realConnect;
-          for (const [method, args] of queuedMethods) {
-            realConnect[method](...args);
-          }
-        });
+      if (connectInstance) {
+        return connectInstance[method](...args);
       } else {
         queuedMethods.push([method, args]);
       }
@@ -78,7 +113,4 @@ const initStripeConnectProxy = () => {
   }
   return obj;
 };
-
-window.myConnect = { init: () => makeConnectObject() };
-
-export {};
+ */
