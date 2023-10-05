@@ -176,6 +176,8 @@ export interface StripeConnectInstance {
    * @returns A promise that resolves when the user is logged out.
    */
   logout: () => Promise<void>;
+
+  debugInstance: () => Promise<StripeConnectInstance | undefined>;
 }
 
 /**
@@ -194,3 +196,19 @@ export declare const loadScript: () => Promise<any | null>;
 export declare const initStripeConnect: (
   stripeConnectPromise: StripeConnectWrapper | null
 ) => any | null;
+
+export type ConnectElementHTMLName =
+  | "stripe-connect-payments"
+  | "stripe-connect-payouts"
+  | "stripe-connect-payment-details"
+  | "stripe-connect-account-onboarding";
+
+export const componentNameMapping: Record<
+  ConnectElementTagName,
+  ConnectElementHTMLName
+> = {
+  payments: "stripe-connect-payments",
+  payouts: "stripe-connect-payouts",
+  "payment-details": "stripe-connect-payment-details",
+  "account-onboarding": "stripe-connect-account-onboarding",
+};
