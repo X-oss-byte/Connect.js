@@ -131,7 +131,7 @@ export interface IStripeConnectInitParams {
   /**
    * The client secret for the connected account.
    */
-  clientSecret: string | (() => Promise<string>);
+  fetchClientSecret: string | (() => Promise<string>);
 
   /**
    * Appearance options for the Connect instance.
