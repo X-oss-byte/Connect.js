@@ -1,4 +1,6 @@
-export declare type LoadConnect = () => Promise<StripeConnectWrapper>;
+export declare type LoadConnect = (
+  initParams: IStripeConnectInitParams
+) => StripeConnectInstance;
 
 export declare type OverlayOption = "dialog" | "drawer";
 
@@ -202,13 +204,3 @@ export type ConnectElementHTMLName =
   | "stripe-connect-payouts"
   | "stripe-connect-payment-details"
   | "stripe-connect-account-onboarding";
-
-export const componentNameMapping: Record<
-  ConnectElementTagName,
-  ConnectElementHTMLName
-> = {
-  payments: "stripe-connect-payments",
-  payouts: "stripe-connect-payouts",
-  "payment-details": "stripe-connect-payment-details",
-  "account-onboarding": "stripe-connect-account-onboarding",
-};
